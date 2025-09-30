@@ -1,94 +1,114 @@
 import random
-table = [
- [0,0,0,0,0,0,0,0,0],
- [0,0,0,0,0,0,0,0,0],
- [0,0,0,0,0,0,0,0,0],
- [0,0,0,0,0,0,0,0,0],
- [0,0,0,0,0,0,0,0,0],
- [0,0,0,0,0,0,0,0,0],
- [0,0,0,0,0,0,0,0,0],
- [0,0,0,0,0,0,0,0,0],
- [0,0,0,0,0,0,0,0,0]
-]
+
+grid = [[0 for _ in range(9)] for _ in range(9)]
+cell = 60
+selected = None
+button_y = 560
+locked = [[False for _ in range(9)] for _ in range(9)]
 
 def setup():
-    size(900, 900)
+    size(540, 620)
+    textAlign(CENTER, CENTER)
+    textSize(24)
+    makePuzzle(removals=10)  
+
+def draw():
     background(255)
-    
-    generateSudoku()
-    makePuzzle(40)
     drawGrid()
+    drawNumbers()
+    drawButtons()
 
 def drawGrid():
-    cell = width // 9
     for i in range(10):
-        if i == 0 or i == 9:
-            strokeWeight(6)
-        elif i % 3 == 0:
-            strokeWeight(3)
-        else:
-            strokeWeight(1)
-        line(i * cell, 0, i * cell, height)
-        line(0, i * cell, width, i * cell)
-    
-    textAlign(CENTER, CENTER)
-    textSize(cell * 0.6)
-    fill(0)
+        strokeWeight(3 if i % 3 == 0 else 1)
+        line(0, i*cell, 9*cell, i*cell)
+        line(i*cell, 0, i*cell, 9*cell)
+    if selected:
+        r, c = selected
+        noFill()
+        strokeWeight(3)
+        rect(c*cell, r*cell, cell, cell)
+
+def drawNumbers():
+    textSize(32)
     for r in range(9):
         for c in range(9):
-            if table[r][c] != 0:
-                text(str(table[r][c]), c * cell + cell // 2, r * cell + cell // 2)
+            if grid[r][c] != 0:
+                fill(0)
+                text(str(grid[r][c]), c*cell + cell/2, r*cell + cell/2)
 
-def generateSudoku():
-    solve(0, 0)
+def drawButtons():
+    textSize(20)
+    for i in range(9):
+        x = i * 60
+        y = button_y
+        fill(200)
+        rect(x, y, 60, 50)
+        fill(0)
+        text(str(i+1), x+30, y+25)
+    fill(255, 180, 180)
 
-def solve(row, col):
-    if row == 9:
-        return True
+def mousePressed():
+    global selected
+    if mouseY < 540:
+        c = mouseX // cell
+        r = mouseY // cell
+        if 0 <= r < 9 and 0 <= c < 9:
+            selected = (r, c)
+    elif button_y <= mouseY <= button_y+50:
+        i = mouseX // 60
+        if 0 <= i < 9 and selected:
+            r, c = selected
+            if not locked[r][c]:
+                if isValid(r, c, i+1):
+                    grid[r][c] = i+1
 
-    if col == 8:
-        nextRow = row + 1
-        nextCol = 0
-    else:
-        nextRow = row
-        nextCol = col + 1
-
-    nums = [1,2,3,4,5,6,7,8,9]
-    shuffle(nums)
-    for n in nums:
-        if isSafe(row, col, n):
-            table[row][col] = n
-            if solve(nextRow, nextCol):
-                return True
-            table[row][col] = 0
-    return False
-
-def isSafe(row, col, n):
-    for c in range(9):
-        if table[row][c] == n:
-            return False
-    for r in range(9):
-        if table[r][col] == n:
-            return False
-    
-    startRow = (row // 3) * 3
-    startCol = (col // 3) * 3
-    for r in range(startRow, startRow + 3):
-        for c in range(startCol, startCol + 3):
-            if table[r][c] == n:
+def fillGrid():
+    for i in range(9):
+        for j in range(9):
+            if grid[i][j] == 0:
+                nums = list(range(1, 10))
+                random.shuffle(nums)
+                for num in nums:
+                    if isValid(i, j, num):
+                        grid[i][j] = num
+                        if fillGrid():
+                            return True
+                        grid[i][j] = 0
                 return False
     return True
 
-def shuffle(arr):
-    for i in range(len(arr)-1, 0, -1):
-        j = int(random.randint(0, i))
-        arr[i], arr[j] = arr[j], arr[i]
+def makePuzzle(removals=40):
+    for r in range(9):
+        for c in range(9):
+            grid[r][c] = 0
+            locked[r][c] = False
+    fillGrid()
+    cells = [(r, c) for r in range(9) for c in range(9)]
+    random.shuffle(cells)
+    count = 0
+    for r, c in cells:
+        if count >= removals:
+            break
+        grid[r][c] = 0
+        locked[r][c] = False
+        count += 1
+    for r in range(9):
+        for c in range(9):
+            if grid[r][c] != 0:
+                locked[r][c] = True
 
-def makePuzzle(emptyCount):
-    removed = 0
-    while removed < emptyCount:
-        r = random.randint(0, 8)
-        c = random.randint(0, 8)
-        if table[r][c] != 0:
-            table[r][c] = 0
-            removed += 1
+def isValid(row, col, val):
+    for c in range(9):
+        if grid[row][c] == val:
+            return False
+    for r in range(9):
+        if grid[r][col] == val:
+            return False
+    startRow = row - row % 3
+    startCol = col - col % 3
+    for r in range(startRow, startRow+3):
+        for c in range(startCol, startCol+3):
+            if grid[r][c] == val:
+                return False
+    return True
