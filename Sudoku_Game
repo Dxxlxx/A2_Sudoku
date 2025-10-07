@@ -9,9 +9,10 @@ def setup():
     textAlign(CENTER, CENTER)
     textSize(24)
     loadFile()
-    locked = [[grid[r][c] != 0 for c in range(9)] for r in range(9)]
+    
 
 def loadFile():
+    global locked
     lines = loadStrings("sudoku.txt")
     r = 0
     while r < len(lines):
@@ -24,6 +25,18 @@ def loadFile():
             c += 1
         grid.append(row)
         r += 1
+        
+    locked = []
+    r = 0
+    while r < 9:
+        row = []
+        c = 0
+        while c < 9:
+            row.append(grid[r][c] != 0)
+            c += 1
+        locked.append(row)
+        r += 1
+
 
 def draw():
     background(255)
