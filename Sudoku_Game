@@ -8,14 +8,22 @@ def setup():
     size(540, 620)
     textAlign(CENTER, CENTER)
     textSize(24)
-    
-    lines = loadStrings("sudoku.txt")
-    for line in lines:
-        row = [int(x) for x in line.replace(',', ' ').split()]
-        grid.append(row)
-
+    loadFile()
     locked = [[grid[r][c] != 0 for c in range(9)] for r in range(9)]
 
+def loadFile():
+    lines = loadStrings("sudoku.txt")
+    r = 0
+    while r < len(lines):
+        line = lines[r]
+        nums = line.split()
+        c = 0
+        row = []
+        while c < len(nums):
+            row.append(int(nums[c]))
+            c += 1
+        grid.append(row)
+        r += 1
 
 def draw():
     background(255)
@@ -27,7 +35,10 @@ def draw():
 def drawGrid():
     i = 0
     while i < 10:
-        strokeWeight(3 if i % 3 == 0 else 1)
+        if i % 3 == 0:
+            strokeWeight(3)
+        else:
+            strokeWeight(1)
         line(0, i * cell, 9 * cell, i * cell)
         line(i * cell, 0, i * cell, 9 * cell)
         i += 1
