@@ -4,12 +4,16 @@ selected = None
 button_y = 560
 
 def setup():
-    global grid, locked
-    size(540, 620)
+    global grid, locked, x_start, y_start, grid_size
+    size(640, 720)
     textAlign(CENTER, CENTER)
     textSize(24)
     loadFile()
-    
+    x_start = 50
+    y_start = 50
+    grid_size = 540 / 9 * 9
+    noLoop()
+
 
 def loadFile():
     global locked
@@ -40,29 +44,34 @@ def loadFile():
 
 def draw():
     background(255)
-    drawGrid()
-    drawNumbers()
-    drawButtons()
-    Finish()
+    drawGrid(50, 50, 540, 540)
+    drawNumbers(50, 50, 540, 540)
+    drawButtons(50, button_y)
+    checkFinish()
 
-def drawGrid():
+
+def drawGrid(x_start, y_start, width, height):
+    local_cell = width / 9
     i = 0
     while i < 10:
         if i % 3 == 0:
             strokeWeight(3)
         else:
             strokeWeight(1)
-        line(0, i * cell, 9 * cell, i * cell)
-        line(i * cell, 0, i * cell, 9 * cell)
+        line(x_start, y_start + i * local_cell, x_start + width, y_start + i * local_cell)
+        line(x_start + i * local_cell, y_start, x_start + i * local_cell, y_start + height)
         i += 1
 
     if selected:
         r, c = selected
         noFill()
+        stroke(0, 0, 255)
         strokeWeight(3)
-        rect(c * cell, r * cell, cell, cell)
+        rect(x_start + c * local_cell, y_start + r * local_cell, local_cell, local_cell)
 
-def drawNumbers():
+
+def drawNumbers(x_start, y_start, width, height):
+    local_cell = width / 9
     textSize(32)
     r = 0
     while r < 9:
@@ -75,35 +84,45 @@ def drawNumbers():
                     fill(255, 0, 0)
                 else:
                     fill(0, 200, 0)
-                text(str(grid[r][c]), c * cell + cell/2, r * cell + cell/2)
+                text(str(grid[r][c]),
+                     x_start + c * local_cell + local_cell / 2,
+                     y_start + r * local_cell + local_cell / 2)
             c += 1
         r += 1
 
-def drawButtons():
+
+def drawButtons(x_start, y_start):
     textSize(30)
     i = 0
     while i < 9:
-        x = i * 60
-        y = button_y
+        x = x_start + i * 60
+        y = y_start + 50
         fill(220)
         rect(x, y, 60, 60)
         fill(0)
         text(str(i + 1), x + 30, y + 30)
         i += 1
 
+
 def mousePressed():
     global selected
-    if mouseY < 540:
-        c = mouseX // cell
-        r = mouseY // cell
+    x_start, y_start, width, height = 50, 50, 540, 540
+    local_cell = width / 9
+
+    if y_start <= mouseY <= y_start + height and x_start <= mouseX <= x_start + width:
+        c = int((mouseX - x_start) // local_cell)
+        r = int((mouseY - y_start) // local_cell)
         if 0 <= r < 9 and 0 <= c < 9:
             selected = (r, c)
-    elif button_y <= mouseY <= button_y + 50:
-        i = mouseX // 60
+
+    elif button_y <= mouseY <= button_y + 60:
+        i = int((mouseX - 50) // 60)
         if 0 <= i < 9 and selected:
             r, c = selected
             if not locked[r][c]:
                 grid[r][c] = i + 1
+                redraw()
+
 
 def isConflict(row, col, val):
     c = 0
@@ -128,7 +147,8 @@ def isConflict(row, col, val):
         r += 1
     return False
 
-def Finish():
+
+def checkFinish():
     r = 0
     while r < 9:
         c = 0
@@ -144,6 +164,6 @@ def Finish():
     fill(0)
     textSize(50)
     textAlign(CENTER, CENTER)
-    text("You Win !", width / 2, height / 2)
+    text("You Win!", width / 2, height / 2)
     noLoop()
     return True
