@@ -4,6 +4,9 @@ selected = None
 button_y = 560
 is_large = False
 scale_factor = 1.0
+assist_mode = True
+current_row = 0 
+row_answer = [None]*9 
 
 def setup():
     global grid, locked
@@ -16,7 +19,6 @@ def setup():
 def loadFile():
     global locked
     lines = loadStrings("sudoku.txt")
-
     r = 0
     while r < len(lines):
         parts = lines[r].split()
@@ -25,7 +27,6 @@ def loadFile():
             nums.append(int(p))
         grid.append(nums)
         r += 1
-
     locked = []
     r = 0
     while r < len(grid):
@@ -45,9 +46,23 @@ def draw():
     drawNumbers(50, 50, 540, 540)
     drawButtons(50, button_y)
     drawResizeButton()
-    drawRowLabel(620, 50)
     drawEmptyCount(620, 150)
-    checkFinish()
+    drawAssistHighlight()
+    popMatrix()
+    if not assist_mode:
+        checkFinish()
+
+def drawAssistHighlight():
+    if assist_mode:
+        x_start, y_start, width, height = 50, 50, 540, 540
+        local_cell = width / 9
+        r = min(max(0, current_row), 8)
+        pushStyle()
+        noFill()
+        stroke(255, 0, 0)
+        strokeWeight(6)
+        rect(x_start, y_start + r*local_cell, width, local_cell)
+        popStyle()
 
 def drawGrid(x_start, y_start, width, height):
     local_cell = width / 9
@@ -57,16 +72,16 @@ def drawGrid(x_start, y_start, width, height):
             strokeWeight(4)
         else:
             strokeWeight(2)
-        
         line(x_start, y_start + i * local_cell, x_start + width, y_start + i * local_cell)
         line(x_start + i * local_cell, y_start, x_start + i * local_cell, y_start + height)
         i += 1
 
-    if selected is not None:
+    if selected is not None and not assist_mode:
         r, c = selected
         noFill()
         stroke(0)
         strokeWeight(4)
+        local_cell = width / 9
         rect(x_start + c * local_cell, y_start + r * local_cell, local_cell, local_cell)
 
 def drawNumbers(x_start, y_start, width, height):
@@ -85,21 +100,23 @@ def drawNumbers(x_start, y_start, width, height):
                     else:
                         fill(0, 200, 0)
 
-                text(str(grid[r][c]), x_start + c * local_cell + local_cell/2,y_start + r * local_cell + local_cell/2)
+                text(str(grid[r][c]), 
+                     x_start + c * local_cell + local_cell/2,
+                     y_start + r * local_cell + local_cell/2)
             c += 1
         r += 1
 
 def drawButtons(x_start, y_start):
     textSize(30)
     i = 0
-    while i < 9:
+    while i < 10:
         x = x_start + i * 60
         y = y_start + 50
         fill(230)
         strokeWeight(2)
         rect(x, y, 60, 60, 8)
         fill(0)
-        text(str(i + 1), x + 30, y + 30)
+        text(str(i), x + 30, y + 30)
         i += 1
 
 def drawResizeButton():
@@ -108,21 +125,9 @@ def drawResizeButton():
     rect(x, y, w, h, 10)
     fill(0)
     textSize(20)
-    if not is_large:
-        label = "Large Mode"
-    else:
-        label = "Normal Mode"
+    label = "Large Mode" if not is_large else "Normal Mode"
     text(label, x + w / 2, y + h / 2)
 
-def drawRowLabel(x, y):
-    fill(0)
-    textSize(26)
-    row = 0
-    offset = 60
-    while row < 9:
-        text("Row " + str(row+1), x+30, y - 30 + (row+1)*offset)
-        row += 1
-        
 def count_Empty(row):
     count = 0
     c = 0
@@ -132,66 +137,95 @@ def count_Empty(row):
         c += 1
     return count
 
-def get_EmptyCount():
-    counts = []
-    r = 0
-    while r < 9:
-        counts.append(count_Empty(r))
-        r += 1
-    return counts
-
 def drawEmptyCount(x, y):
-    fill(0)
     textSize(26)
     textAlign(CENTER, CENTER)
-    text("Empty Cells", x+300, y)
-    counts = get_EmptyCount()
     row = 0
     while row < 9:
-        label = "Row " + str(row+1) + " :  "+ str(counts[row]) + "  cells"
-        text(label, x+300, y + (row+1)*40)
+        if row_answer[row] is not None:
+            val, correct = row_answer[row]
+            if correct:
+                fill(0)
+            else:
+                fill(255, 0, 0)
+            label = str(val)
+        else:
+            fill(0)
+            label = "-"
+        text(label, x+20, y - 130 + (row+1)*60)
         row += 1
 
 def mousePressed():
     global selected, is_large, scale_factor, button_y
-    x_start, y_start, width, height = 50, 50, 540, 540
-    local_cell = width / 9
+    global assist_mode, current_row, row_answer
 
     mx = mouseX / scale_factor
     my = mouseY / scale_factor
 
-    if (my >= y_start and my <= y_start + height) and (mx >= x_start and mx <= x_start + width):
-        c = int((mx - x_start) // local_cell)
-        r = int((my - y_start) // local_cell)
-        selected = (r, c)
-    else:
-        if my >= button_y + 50 and my <= button_y + 110:
-            i = int((mx - 50) // 60)
-            if i >= 0 and i < 9 and selected is not None:
-                r, c = selected
-                if not locked[r][c]:
-                    grid[r][c] = i + 1
+    if my >= button_y + 50 and my <= button_y + 110:
+        i = int((mx - 50) // 60)
+        if 0 <= i <= 9:
+            if assist_mode:
+                if current_row < 0 or current_row > 8:
+                    redraw()
+                    return
+                correct = count_Empty(current_row)
+                row_answer[current_row] = (i, i == correct)
+                if i == correct:
+                    current_row += 1
+                    if current_row >= 9:
+                        assist_mode = False
+                        for r in range(9):
+                            for c in range(9):
+                                if grid[r][c] == 0:
+                                    selected = (r, c)
+                                    break
+                            if selected is not None:
+                                break
+                redraw()
+                return
+            else:
+                if selected is not None:
+                    r, c = selected
+                    if not locked[r][c]:
+                        grid[r][c] = i
+                redraw()
+                return
+
+    # Resize button
+    if (mx >= 450 and mx <= 610) and (my >= button_y + 130 and my <= button_y + 185):
+        if not is_large:
+            scale_factor = 1.35
+            is_large = True
         else:
-            if (mx >= 450 and mx <= 610) and (my >= button_y + 130 and my <= button_y + 185):
-                if not is_large:
-                    scale_factor = 1.35
-                    is_large = True
-                else:
-                    scale_factor = 1.0
-                    is_large = False
-    redraw()
+            scale_factor = 1.0
+            is_large = False
+        redraw()
+        return
+    if not assist_mode:
+        x_start, y_start, width, height = 50, 50, 540, 540
+        local_cell = width / 9
+        if x_start <= mx <= x_start + width and y_start <= my <= y_start + height:
+            c = int((mx - x_start) // local_cell)
+            r = int((my - y_start) // local_cell)
+            if not locked[r][c]:
+                selected = (r, c)
+                redraw()
 
 def isConflict(row, col, val):
+    # row
     c = 0
     while c < 9:
         if c != col and grid[row][c] == val:
             return True
         c += 1
+    # col
     r = 0
     while r < 9:
         if r != row and grid[r][col] == val:
             return True
         r += 1
+    # 3x3 box
     startR = row - row % 3
     startC = col - col % 3
     r = startR
